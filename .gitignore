@@ -1,0 +1,12 @@
+.env
+id_rsa
+id_rsa.pub
+nul
+*.zip
+frontend.zip
+deploy.zip
+__pycache__/
+*.pyc
+node_modules/
+.venv/
+venv/

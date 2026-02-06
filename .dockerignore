@@ -1,0 +1,30 @@
+# SSH keys
+id_rsa
+id_rsa.pub
+*.pem
+
+# Git
+.git
+.gitignore
+
+# Environment
+.env
+.env.*
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# Node
+node_modules
+
+# Python
+__pycache__
+*.pyc
+.venv
+venv
+
+# Misc
+*.md
+.claude
