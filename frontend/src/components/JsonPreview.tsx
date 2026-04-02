@@ -7,8 +7,9 @@ interface JsonPreviewProps {
 }
 
 export function JsonPreview({ data, title, collapsible = false }: JsonPreviewProps) {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(collapsible);
   const [copied, setCopied] = useState(false);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const handleCopy = async () => {
     try {
@@ -67,7 +68,7 @@ export function JsonPreview({ data, title, collapsible = false }: JsonPreviewPro
           {'{'}
           {entries.map(([key, val], index) => (
             <div key={key} style={indentStyle}>
-              <span className="text-amber-700">"{key}"</span>
+              <span className="text-blue-600">"{key}"</span>
               <span className="text-gray-600">: </span>
               {renderValue(val, indent + 1)}
               {index < entries.length - 1 && ','}
@@ -81,30 +82,69 @@ export function JsonPreview({ data, title, collapsible = false }: JsonPreviewPro
     return <span className="text-gray-600">{String(value)}</span>;
   };
 
+  const handleCopyValue = async (key: string, val: string) => {
+    try {
+      await navigator.clipboard.writeText(val);
+      setCopiedKey(key);
+      setTimeout(() => setCopiedKey(null), 1500);
+    } catch (error) {
+      console.error('Failed to copy:', error);
+    }
+  };
+
+  const renderEntries = (obj: Record<string, unknown>): React.ReactNode => {
+    const entries = Object.entries(obj);
+    if (entries.length === 0) return null;
+    return (
+      <>
+        {entries.map(([key, val]) => (
+          <div
+            key={key}
+            className="group flex items-center gap-1 cursor-pointer hover:bg-gray-100 rounded px-1 -mx-1"
+            onClick={() => handleCopyValue(key, String(val))}
+          >
+            <span className="flex-1">
+              <span className="text-blue-600">{key}</span>
+              <span className="text-gray-600">: </span>
+              <span className="text-green-600">{String(val)}</span>
+            </span>
+            {copiedKey === key ? (
+              <svg className="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            ) : (
+              <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 opacity-0 group-hover:opacity-100" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            )}
+          </div>
+        ))}
+      </>
+    );
+  };
+
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-lg overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200">
+      <div
+        onClick={collapsible ? () => setIsCollapsed(!isCollapsed) : undefined}
+        className={`flex items-center justify-between px-4 py-2 bg-gray-100 border-b border-gray-200 ${collapsible ? 'cursor-pointer hover:bg-gray-200' : ''}`}
+      >
         <div className="flex items-center gap-2">
           {collapsible && (
-            <button
-              onClick={() => setIsCollapsed(!isCollapsed)}
-              className="text-gray-500 hover:text-gray-700"
+            <svg
+              className={`w-4 h-4 text-gray-500 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
             >
-              <svg
-                className={`w-4 h-4 transition-transform ${isCollapsed ? '' : 'rotate-90'}`}
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 5l7 7-7 7"
+              />
+            </svg>
           )}
           {title && <span className="text-sm font-medium text-gray-700">{title}</span>}
         </div>
@@ -139,7 +179,7 @@ export function JsonPreview({ data, title, collapsible = false }: JsonPreviewPro
       {!isCollapsed && (
         <div className="p-4 overflow-x-auto">
           <pre className="text-sm font-mono whitespace-pre-wrap">
-            {renderValue(data)}
+            {renderEntries(data)}
           </pre>
         </div>
       )}

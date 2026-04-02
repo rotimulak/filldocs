@@ -1,0 +1,19 @@
+{
+  "name": "filldocs",
+  "version": "1.0.0",
+  "scripts": {
+    "linear:watch": "node scripts/linear-watcher.js",
+    "linear:setup": "node scripts/linear-project-setup.js",
+    "linear:setup-workflow": "node scripts/linear-setup-workflow.js",
+    "linear:add-design-review": "node scripts/linear-add-design-review-state.js",
+    "linear:check": "node scripts/linear-check.js",
+    "design:review": "node scripts/design-review-workflow.js",
+    "setup:hooks": "bash scripts/setup-git-hooks.sh",
+    "test:all": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && pytest tests/",
+    "test:frontend": "cd frontend && npm test -- --watchAll=false"
+  },
+  "devDependencies": {
+    "@linear/sdk": "^75.0.0"
+  }
+}

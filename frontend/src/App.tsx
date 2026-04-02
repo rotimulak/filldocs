@@ -21,7 +21,7 @@ function App() {
 
       {/* Main content - three columns */}
       <main className="max-w-[1400px] mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr_280px] gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Левая панель - Реквизиты */}
           <div className="bg-white rounded-lg shadow p-6 min-h-[500px]">
             <RequisitesPanel onRequisitesChange={setRequisites} />
@@ -32,8 +32,8 @@ function App() {
             <FillPanel requisites={requisites} />
           </div>
 
-          {/* Правая панель - Эвристики */}
-          <div className="bg-white rounded-lg shadow p-6">
+          {/* Правая панель - Эвристики (скрыта) */}
+          <div className="hidden">
             <HeuristicsPanel />
           </div>
         </div>

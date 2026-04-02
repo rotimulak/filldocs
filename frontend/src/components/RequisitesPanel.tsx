@@ -91,7 +91,17 @@ export function RequisitesPanel({ onRequisitesChange }: RequisitesPanelProps) {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Реквизиты компании</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-lg font-semibold text-gray-900">Реквизиты компании</h2>
+          {state.status === 'success' && (
+            <span className="flex items-center gap-1 text-xs text-green-600">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+              {state.source === 'file' ? 'Сохранено' : 'Из памяти'}
+            </span>
+          )}
+        </div>
         {state.status === 'success' && (
           <button
             onClick={handleClear}
@@ -155,16 +165,6 @@ export function RequisitesPanel({ onRequisitesChange }: RequisitesPanelProps) {
                 </div>
               </div>
             )}
-
-            {/* Status badge */}
-            <div className="flex items-center gap-2 text-sm">
-              <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-green-700">
-                {state.source === 'file' ? 'Сохранено в браузере' : 'Загружено из памяти'}
-              </span>
-            </div>
 
             {/* JSON Preview */}
             <div className="flex-1 min-h-0 overflow-auto">

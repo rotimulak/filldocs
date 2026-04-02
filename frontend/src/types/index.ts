@@ -1,20 +1,4 @@
-export interface Requisites {
-  company_name?: string;
-  inn?: string;
-  kpp?: string;
-  ogrn?: string;
-  address?: string;
-  postal_address?: string;
-  bank_name?: string;
-  bik?: string;
-  account?: string;
-  corr_account?: string;
-  bank_details?: string;
-  director?: string;
-  contact_person?: string;
-  phone?: string;
-  email?: string;
-}
+export type Requisites = Record<string, string>;
 
 export interface RawField {
   label: string;
@@ -30,11 +14,23 @@ export interface ExtractResponse {
   message: string;
 }
 
+export interface FilledCell {
+  label: string;
+  value: string;
+  requisite_key: string | null;
+}
+
+export interface EmptyCell {
+  label: string;
+}
+
 export interface FillResponse {
   success: boolean;
   filled_fields: number;
-  used_fields: Record<string, number>;  // поле -> сколько раз использовано
-  unused_fields: string[];               // неиспользованные поля
+  total_instructions: number;
+  filled_details: FilledCell[];
+  empty_cells: EmptyCell[];
+  skipped_count: number;
   download_url: string;
   filename: string;
   message: string;

@@ -3,4 +3,6 @@ uvicorn[standard]>=0.27.0
 python-docx>=0.8.11
 python-multipart>=0.0.6
 pydantic[email]>=2.5.0
+pydantic-settings>=2.1.0
+openai>=1.12.0
 pywin32>=306; sys_platform == "win32"

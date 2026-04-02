@@ -188,36 +188,36 @@ Response: {
 
 ```
 src/
-├── App.tsx                    # Главный layout (две панели)
+├── App.tsx                    # Главный layout (три колонки)
 ├── components/
 │   ├── DropZone.tsx          # Универсальная drag & drop зона
 │   ├── RequisitesPanel.tsx   # Левая панель
-│   ├── FillPanel.tsx         # Правая панель
-│   ├── JsonPreview.tsx       # Отображение JSON
+│   ├── FillPanel.tsx         # Центральная панель
 │   ├── FillReport.tsx        # Отчёт о заполнении
+│   ├── JsonPreview.tsx       # Отображение JSON
+│   ├── HeuristicsPanel.tsx   # Правая панель (инфо)
 │   └── Spinner.tsx           # Индикатор загрузки
 ├── hooks/
-│   ├── useLocalStorage.ts    # Работа с localStorage
-│   └── useFileDrop.ts        # Логика drag & drop
+│   └── useLocalStorage.ts    # Работа с localStorage
 ├── api/
 │   └── client.ts             # API клиент
 └── types/
-    └── index.ts              # TypeScript типы
+    └── index.ts              # TypeScript типы (Requisites = Record<string, string>)
 ```
 
 ---
 
-## Приоритеты реализации
+## Статус реализации
 
-1. **MVP**
-   - [ ] Drag & Drop загрузка файлов
-   - [ ] Извлечение реквизитов из документа
-   - [ ] Сохранение в localStorage
-   - [ ] Заполнение шаблона
-   - [ ] Скачивание результата
+### MVP (v2) — ЗАВЕРШЕНО
+- [x] Drag & Drop загрузка файлов
+- [x] Извлечение реквизитов из документа (через LLM)
+- [x] Сохранение в localStorage
+- [x] Заполнение шаблона (через LLM)
+- [x] Скачивание результата
 
-2. **Улучшения**
-   - [ ] Редактирование реквизитов вручную
-   - [ ] История заполненных документов
-   - [ ] Множественные профили реквизитов
-   - [ ] Batch обработка нескольких шаблонов
+### Улучшения — TODO
+- [ ] Редактирование реквизитов вручную
+- [ ] Множественные профили реквизитов
+- [ ] Batch обработка нескольких шаблонов
+- [ ] Сохранение стиля при заполнении ячеек

@@ -46,6 +46,8 @@ export function FillPanel({ requisites }: FillPanelProps) {
         return;
       }
 
+      console.log('Fill response:', JSON.stringify(result, null, 2));
+
       setState({
         status: 'success',
         response: result,
@@ -132,9 +134,11 @@ export function FillPanel({ requisites }: FillPanelProps) {
         {state.status === 'success' && (
           <>
             <FillReport
-              usedFields={state.response.used_fields}
-              unusedFields={state.response.unused_fields}
-              filename={state.response.filename}
+              filledFields={state.response.filled_fields}
+              totalInstructions={state.response.total_instructions}
+              filledDetails={state.response.filled_details}
+              emptyCells={state.response.empty_cells}
+              skippedCount={state.response.skipped_count}
             />
 
             {/* Download button */}

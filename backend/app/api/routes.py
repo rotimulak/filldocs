@@ -1,4 +1,6 @@
 """API эндпоинты"""
+import json
+import logging
 from pathlib import Path
 from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse
@@ -6,9 +8,25 @@ import shutil
 import uuid
 import os
 
-from app.models.requisites import Requisites, FillRequest, FillResponse, ExtractResponse
-from app.services.docx_filler import filler
+import openai
+from docx import Document
+
+from app.models.requisites import FillResponse, ExtractResponse, RawField, FilledCell, EmptyCell
 from app.services.converter import converter
+from app.services.docx_text import docx_to_text, find_requisites_table, docx_tables_to_text
+from app.services.llm_service import llm_service
+
+logger = logging.getLogger(__name__)
+
+
+def requisites_to_xml(requisites: dict[str, str]) -> str:
+    """Конвертировать dict реквизитов в XML для LLM"""
+    parts = ['<requisites>']
+    for name, value in requisites.items():
+        parts.append(f'  <field name="{name}">{value}</field>')
+    parts.append('</requisites>')
+    return '\n'.join(parts)
+
 
 router = APIRouter()
 
@@ -84,24 +102,41 @@ async def extract_requisites(file: UploadFile = File(...)):
             except Exception as e:
                 raise HTTPException(500, f"Ошибка конвертации .doc: {str(e)}")
 
-        # Извлечение реквизитов
-        result = filler.extract(docx_path)
+        # Извлечение текста из документа
+        document_text = docx_to_text(docx_path)
 
-        if not result["table_found"]:
+        # Извлечение реквизитов через LLM
+        try:
+            requisites = await llm_service.extract_requisites(document_text)
+        except ValueError as e:
+            raise HTTPException(502, f"Ошибка разбора ответа LLM: {e}")
+        except openai.APITimeoutError as e:
+            raise HTTPException(502, f"Таймаут LLM API: {e}")
+        except openai.APIStatusError as e:
+            raise HTTPException(502, f"Ошибка LLM API ({e.status_code}): {e}")
+        except openai.APIConnectionError as e:
+            raise HTTPException(502, f"Ошибка соединения с LLM API: {e}")
+
+        raw_fields = [
+            RawField(label=key, value=value, matched_key=None)
+            for key, value in requisites.items()
+        ]
+
+        if not requisites:
             return ExtractResponse(
                 success=False,
                 requisites={},
                 raw_fields=[],
-                warnings=result["warnings"],
-                message="Блок реквизитов не найден в документе"
+                warnings=["LLM не нашёл реквизитов в документе"],
+                message="Реквизиты не найдены в документе"
             )
 
         return ExtractResponse(
             success=True,
-            requisites=result["requisites"],
-            raw_fields=result["raw_fields"],
-            warnings=result["warnings"],
-            message=f"Извлечено {len(result['requisites'])} полей из документа"
+            requisites=requisites,
+            raw_fields=raw_fields,
+            warnings=[],
+            message=f"Извлечено {len(requisites)} полей из документа"
         )
 
     finally:
@@ -125,22 +160,20 @@ async def upload_template(file: UploadFile = File(...)):
     return {"message": f"Шаблон {file.filename} загружен", "path": str(dest)}
 
 
-@router.post("/fill")
+@router.post("/fill", response_model=FillResponse)
 async def fill_document(
     file: UploadFile = File(...),
     requisites: str = Form(...)  # JSON string
 ):
     """
-    Заполнить документ реквизитами.
+    Заполнить документ реквизитами через LLM.
 
     Принимает:
     - file: шаблон .doc или .docx
     - requisites: JSON строка с реквизитами
 
-    Возвращает информацию для скачивания заполненного документа.
+    Поток: загрузка -> поиск таблицы -> LLM генерирует инструкции -> применение к docx -> скачивание.
     """
-    import json
-
     # Валидация расширения
     filename = file.filename or "template"
     ext = Path(filename).suffix.lower()
@@ -184,19 +217,116 @@ async def fill_document(
         output_name = f"{base_name}_filled_{uuid.uuid4().hex[:8]}.docx"
         output_path = OUTPUT_DIR / output_name
 
-        # Заполняем документ
-        fill_stats = filler.fill(docx_path, output_path, requisites_data)
+        # Найти таблицу с реквизитами
+        table_info = find_requisites_table(docx_path)
+        if not table_info:
+            # Fallback: взять все таблицы
+            tables = docx_tables_to_text(docx_path)
+            if tables:
+                table_info = tables[0]
 
-        total_used = sum(fill_stats["used_fields"].values())
-        return {
-            "success": True,
-            "filled_fields": total_used,
-            "used_fields": fill_stats["used_fields"],
-            "unused_fields": fill_stats["unused_fields"],
-            "download_url": f"/api/download/{output_name}",
-            "filename": output_name,
-            "message": f"Заполнено {total_used} полей"
-        }
+        if not table_info:
+            raise HTTPException(400, "Таблица для заполнения не найдена")
+
+        # Конвертировать реквизиты в XML
+        requisites_xml = requisites_to_xml(requisites_data)
+
+        # DEBUG: вывести таблицу, которую видит LLM
+        logger.warning("=== TABLE TEXT FOR LLM ===\n%s", table_info["text"])
+        logger.warning("=== CELLS MATRIX ===")
+        for r_idx, row_cells in enumerate(table_info.get("cells", [])):
+            logger.warning("  Row %d: %s", r_idx, row_cells)
+
+        # Получить инструкции от LLM
+        try:
+            instructions = await llm_service.generate_fill_instructions(
+                table_info["text"], requisites_xml
+            )
+        except ValueError as e:
+            raise HTTPException(502, f"Ошибка разбора ответа LLM: {e}")
+        except openai.APITimeoutError as e:
+            raise HTTPException(502, f"Таймаут LLM API: {e}")
+        except openai.APIStatusError as e:
+            raise HTTPException(502, f"Ошибка LLM API ({e.status_code}): {e}")
+        except openai.APIConnectionError as e:
+            raise HTTPException(502, f"Ошибка соединения с LLM API: {e}")
+
+        logger.warning("=== LLM INSTRUCTIONS ===\n%s", json.dumps(instructions, ensure_ascii=False, indent=2))
+
+        # Применить инструкции к docx
+        doc = Document(str(docx_path))
+        table = doc.tables[table_info["index"]]
+        cells_matrix = table_info.get("cells", [])
+
+        # Обратный индекс: значение -> ключ реквизита
+        value_to_key: dict[str, str] = {v: k for k, v in requisites_data.items() if v}
+
+        filled_count = 0
+        skipped_count = 0
+        filled_details: list[FilledCell] = []
+        filled_rows: set[int] = set()
+
+        for instr in instructions:
+            row_idx, col_idx, value = instr["row"], instr["col"], instr["value"]
+            if row_idx < len(table.rows) and col_idx < len(table.rows[row_idx].cells):
+                table.rows[row_idx].cells[col_idx].text = value
+                filled_count += 1
+                filled_rows.add(row_idx)
+
+                # Метка — ячейка слева от заполненной
+                label = ""
+                if row_idx < len(cells_matrix) and col_idx > 0:
+                    row_cells = cells_matrix[row_idx]
+                    label = row_cells[col_idx - 1].strip() if col_idx - 1 < len(row_cells) else ""
+                # Усекаем длинные метки
+                label = label[:120] if label else f"ячейка ({row_idx},{col_idx})"
+
+                # Ищем ключ реквизита по значению
+                req_key = value_to_key.get(value)
+
+                filled_details.append(FilledCell(label=label, value=value, requisite_key=req_key))
+            else:
+                skipped_count += 1
+                logger.warning(
+                    "Skipping out-of-bounds instruction: row=%d, col=%d (table: %d rows)",
+                    row_idx, col_idx, len(table.rows),
+                )
+
+        # Определяем колонку значений по большинству инструкций
+        empty_cells: list[EmptyCell] = []
+        total_fields = filled_count  # минимум — сколько заполнили
+        if cells_matrix and instructions:
+            col_votes = [instr["col"] for instr in instructions if instr["row"] < len(table.rows)]
+            value_col = max(set(col_votes), key=col_votes.count) if col_votes else 1
+            label_col = value_col - 1 if value_col > 0 else 0
+
+            # Считаем все строки с меткой (= все поля таблицы), пропуская заголовок (row 0)
+            total_fields = 0
+            for r_idx, row_cells in enumerate(cells_matrix):
+                if r_idx == 0:
+                    continue  # заголовок таблицы
+                if label_col < len(row_cells) and row_cells[label_col].strip():
+                    total_fields += 1
+                    # Незаполненные строки с пустым значением
+                    if r_idx not in filled_rows and value_col < len(row_cells) and not row_cells[value_col].strip():
+                        empty_cells.append(EmptyCell(label=row_cells[label_col].strip()[:120]))
+
+        doc.save(str(output_path))
+
+        response = FillResponse(
+            success=True,
+            filled_fields=filled_count,
+            total_instructions=total_fields,
+            filled_details=filled_details,
+            empty_cells=empty_cells,
+            skipped_count=skipped_count,
+            download_url=f"/api/download/{output_name}",
+            filename=output_name,
+            message=f"Заполнено {filled_count} ячеек",
+        )
+        dumped = response.model_dump()
+        logger.warning("FILL RESPONSE DUMP: keys=%s, filled_details_count=%d", list(dumped.keys()), len(dumped.get("filled_details", [])))
+        return dumped
 
     finally:
         # Очистка временных файлов (шаблон)
@@ -251,17 +381,13 @@ async def convert_doc(file: UploadFile = File(...)):
 @router.get("/requisites/sample")
 async def get_sample_requisites():
     """Пример структуры реквизитов"""
-    return Requisites(
-        company_name='ООО "Пример"',
-        inn="1234567890",
-        kpp="123456789",
-        ogrn="1234567890123",
-        address="г. Москва, ул. Примерная, д. 1",
-        bank_name="ПАО Сбербанк",
-        bik="044525225",
-        account="40702810938000012345",
-        corr_account="30101810400000000225",
-        director="Иванов Иван Иванович",
-        phone="+7 (495) 123-45-67",
-        email="info@example.com"
-    ).model_dump()
+    return {
+        "Наименование компании": 'ООО "Пример"',
+        "ИНН": "1234567890",
+        "КПП": "123456789",
+        "Юридический адрес": "г. Москва, ул. Примерная, д. 1",
+        "Банк": "ПАО Сбербанк",
+        "БИК": "044525225",
+        "Расчётный счёт": "40702810938000012345",
+        "Руководитель": "Иванов Иван Иванович",
+    }

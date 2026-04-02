@@ -1,4 +1,4 @@
-# Архитектура FillDocs
+# Архитектура FillDocs v2
 
 ## Обзор системы
 
@@ -6,7 +6,7 @@
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              КЛИЕНТ                                     │
 │  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │                     React + Tailwind                              │  │
+│  │                     React + Tailwind v4                           │  │
 │  │  ┌─────────────────────┐    ┌─────────────────────┐               │  │
 │  │  │  RequisitesPanel    │    │    FillPanel        │               │  │
 │  │  │  - DropZone         │    │    - DropZone       │               │  │
@@ -30,21 +30,29 @@
 │  │  ┌─────────────────────────────────────────────────┐              │  │
 │  │  │              Services Layer                      │              │  │
 │  │  │  ┌─────────────┐  ┌─────────────┐               │              │  │
-│  │  │  │ DocxFiller  │  │  Converter  │               │              │  │
-│  │  │  │ - extract   │  │  doc→docx   │               │              │  │
-│  │  │  │ - fill      │  │  (pywin32)  │               │              │  │
+│  │  │  │ LLMService  │  │ DocxText    │               │              │  │
+│  │  │  │ (Anthropic) │  │ (python-docx)│              │              │  │
 │  │  │  └─────────────┘  └─────────────┘               │              │  │
+│  │  │  ┌─────────────┐                                │              │  │
+│  │  │  │  Converter  │                                │              │  │
+│  │  │  │  doc→docx   │                                │              │  │
+│  │  │  └─────────────┘                                │              │  │
 │  │  └─────────────────────────────────────────────────┘              │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 │                                    │                                    │
 │                                    ▼                                    │
 ├─────────────────────────────────────────────────────────────────────────┤
 │                           ФАЙЛОВАЯ СИСТЕМА                              │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                      │
-│  │  templates/ │  │   output/   │  │ requisites/ │                      │
-│  │  .docx      │  │  _filled    │  │   .json     │                      │
-│  │  .doc       │  │  .docx      │  │             │                      │
-│  └─────────────┘  └─────────────┘  └─────────────┘                      │
+│  ┌─────────────┐  ┌─────────────┐                                      │
+│  │   temp/     │  │   output/   │                                      │
+│  │ (удаляется) │  │ (удаляется  │                                      │
+│  │             │  │  после DL)  │                                      │
+│  └─────────────┘  └─────────────┘                                      │
+├─────────────────────────────────────────────────────────────────────────┤
+│                           LLM API (Anthropic)                           │
+│  ┌─────────────────────────────────────────────────────────────────┐    │
+│  │  Claude API — извлечение реквизитов + генерация инструкций      │    │
+│  └─────────────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -58,40 +66,68 @@ filldocs/
 │   ├── app/
 │   │   ├── __init__.py
 │   │   ├── main.py                 # FastAPI приложение
+│   │   ├── config.py               # Settings (pydantic-settings)
 │   │   ├── api/
 │   │   │   ├── __init__.py
 │   │   │   └── routes.py           # REST эндпоинты
 │   │   ├── services/
 │   │   │   ├── __init__.py
-│   │   │   ├── docx_filler.py      # Логика заполнения docx
-│   │   │   └── converter.py        # Конвертация doc→docx
-│   │   └── models/
+│   │   │   ├── llm_service.py      # LLM API (Anthropic Claude)
+│   │   │   ├── docx_text.py        # docx → текст, поиск таблиц
+│   │   │   ├── docx_filler.py      # [legacy v1] regex-маппинг
+│   │   │   └── converter.py        # .doc → .docx конвертация
+│   │   ├── models/
+│   │   │   ├── __init__.py
+│   │   │   └── requisites.py       # Pydantic-модели ответов
+│   │   └── prompts/
 │   │       ├── __init__.py
-│   │       └── requisites.py       # Pydantic схемы
+│   │       ├── extract.txt          # Промпт извлечения реквизитов
+│   │       └── fill.txt             # Промпт генерации инструкций
 │   ├── requirements.txt
+│   ├── .env.example
 │   └── tests/
+│       ├── test_docx_text.py        # 11 тестов
+│       ├── test_llm_service.py      # 12 тестов
+│       ├── test_extract_endpoint.py # 10 тестов
+│       ├── test_fill_endpoint.py    # 7 тестов
+│       ├── test_config.py           # 2 тесты
+│       └── conftest.py
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── App.tsx                 # Главный компонент
+│   │   ├── App.tsx                 # Layout (три колонки)
 │   │   ├── main.tsx                # Точка входа
-│   │   ├── index.css               # Tailwind
+│   │   ├── index.css               # Tailwind v4
 │   │   ├── api/
 │   │   │   └── client.ts           # HTTP клиент
 │   │   ├── components/
-│   │   │   ├── RequisitesForm.tsx
-│   │   │   └── TemplateSelect.tsx
+│   │   │   ├── RequisitesPanel.tsx  # Левая панель
+│   │   │   ├── FillPanel.tsx        # Центральная панель
+│   │   │   ├── FillReport.tsx       # Отчёт о заполнении
+│   │   │   ├── DropZone.tsx         # Drag & drop
+│   │   │   ├── JsonPreview.tsx      # Предпросмотр JSON
+│   │   │   ├── HeuristicsPanel.tsx  # Правая панель (инфо)
+│   │   │   └── Spinner.tsx          # Индикатор загрузки
+│   │   ├── hooks/
+│   │   │   └── useLocalStorage.ts
 │   │   └── types/
 │   │       └── index.ts            # TypeScript типы
 │   ├── package.json
-│   ├── tailwind.config.js
-│   ├── postcss.config.js
 │   └── vite.config.ts
 │
 ├── data/
-│   ├── templates/                  # Исходные шаблоны
-│   ├── output/                     # Заполненные документы
-│   └── requisites/                 # JSON с реквизитами
+│   ├── temp/                       # Временные файлы (удаляются сразу)
+│   └── output/                     # Результаты (удаляются после скачивания)
+│
+├── agents/                         # Агенты разработки
+│   ├── taskflow.md                 # Workflow процесс
+│   ├── orchestrator.md
+│   ├── researcher.md
+│   ├── planner.md
+│   ├── architect.md
+│   ├── coder.md
+│   ├── tester.md
+│   └── reviewer.md
 │
 ├── scripts/                        # CLI утилиты
 │   ├── fill_docx.py
@@ -99,50 +135,53 @@ filldocs/
 │   └── inspect_docx.py
 │
 └── docs/
-    ├── TASK.md                     # Техническое задание
-    └── architecture.md             # Этот документ
+    ├── TASK.md                     # Техническое задание (UI)
+    ├── architecture.md             # Этот документ
+    ├── solution.md                 # Алгоритмы и потоки данных
+    └── V2-MIGRATION.md             # История миграции v1→v2
 ```
 
 ---
 
 ## Потоки данных
 
-### 1. Извлечение реквизитов
+### 1. Извлечение реквизитов (Extract)
 
 ```
-┌──────────┐    ┌──────────┐    ┌──────────────┐    ┌────────────┐
-│  Файл    │───▶│ Frontend │───▶│   Backend    │───▶│ python-docx│
-│  .docx   │    │ DropZone │    │ /api/extract │    │  parse     │
-└──────────┘    └──────────┘    └──────────────┘    └────────────┘
-                     │                                     │
-                     │                                     │
-                     ▼                                     ▼
-              ┌────────────┐                        ┌────────────┐
-              │localStorage│◀───────────────────────│   JSON     │
-              │ requisites │                        │ response   │
-              └────────────┘                        └────────────┘
+┌──────────┐    ┌──────────┐    ┌──────────────┐    ┌────────────┐    ┌─────────┐
+│  Файл    │───▶│ Frontend │───▶│   Backend    │───▶│  DocxText  │───▶│   LLM   │
+│  .docx   │    │ DropZone │    │ /api/extract │    │ docx→text  │    │ Claude  │
+└──────────┘    └──────────┘    └──────────────┘    └────────────┘    └─────────┘
+                     │                                                     │
+                     │                                                     │
+                     ▼                                                     ▼
+              ┌────────────┐                                        ┌────────────┐
+              │localStorage│◀───────────────────────────────────────│  XML→JSON  │
+              │ requisites │          dict[str, str]                 │ реквизиты  │
+              └────────────┘                                        └────────────┘
 ```
 
-### 2. Заполнение документа
+### 2. Заполнение документа (Fill)
 
 ```
-┌──────────┐    ┌────────────┐    ┌──────────────┐    ┌────────────┐
-│ Шаблон   │───▶│  Frontend  │───▶│   Backend    │───▶│ DocxFiller │
-│  .docx   │    │  DropZone  │    │  /api/fill   │    │  .fill()   │
-└──────────┘    └────────────┘    └──────────────┘    └────────────┘
-                     │                   │                   │
-                     │                   │                   ▼
-              ┌────────────┐             │            ┌────────────┐
-              │localStorage│─────────────┘            │   output/  │
-              │ requisites │  (JSON в запросе)        │ filled.docx│
-              └────────────┘                          └────────────┘
-                                                            │
-                     ┌──────────────────────────────────────┘
+┌──────────┐    ┌────────────┐    ┌──────────────┐    ┌────────────┐    ┌─────────┐
+│ Шаблон   │───▶│  Frontend  │───▶│   Backend    │───▶│  DocxText  │───▶│   LLM   │
+│  .docx   │    │  DropZone  │    │  /api/fill   │    │find_table  │    │ Claude  │
+└──────────┘    └────────────┘    └──────────────┘    └────────────┘    └─────────┘
+                     │                   │                                   │
+                     │                   │                                   ▼
+              ┌────────────┐             │                           ┌────────────┐
+              │localStorage│─────────────┘                          │ Инструкции │
+              │ requisites │  (JSON в запросе)                      │ [{row,col, │
+              └────────────┘                                        │   value}]  │
+                                                                    └────────────┘
+                                                                          │
+                     ┌────────────────────────────────────────────────────┘
                      ▼
-              ┌────────────┐    ┌────────────────┐
-              │  Download  │◀───│ /api/download  │
-              │   .docx    │    │   FileResponse │
-              └────────────┘    └────────────────┘
+              ┌────────────┐    ┌────────────┐    ┌────────────────┐
+              │  Применить │───▶│   output/   │───▶│ /api/download  │
+              │  к docx    │    │ filled.docx │    │   FileResponse │
+              └────────────┘    └────────────┘    └────────────────┘
 ```
 
 ---
@@ -154,8 +193,8 @@ filldocs/
 | GET | `/health` | Проверка работоспособности |
 | GET | `/api/templates` | Список шаблонов |
 | POST | `/api/templates/upload` | Загрузить шаблон |
-| POST | `/api/extract-requisites` | Извлечь реквизиты из документа |
-| POST | `/api/fill` | Заполнить документ |
+| POST | `/api/extract-requisites` | docx → LLM → JSON реквизитов |
+| POST | `/api/fill` | шаблон + реквизиты → LLM → заполненный docx |
 | GET | `/api/download/{filename}` | Скачать результат |
 | POST | `/api/convert` | Конвертировать doc→docx |
 | GET | `/api/requisites/sample` | Пример структуры реквизитов |
@@ -164,25 +203,15 @@ filldocs/
 
 ## Модели данных
 
-### Requisites (Pydantic)
+### ExtractResponse
 
 ```python
-class Requisites(BaseModel):
-    company_name: str           # Наименование компании
-    inn: str                    # ИНН
-    kpp: Optional[str]          # КПП
-    ogrn: Optional[str]         # ОГРН
-    address: str                # Юридический адрес
-    postal_address: Optional[str]
-    bank_name: Optional[str]    # Наименование банка
-    bik: Optional[str]          # БИК
-    account: Optional[str]      # Расчётный счёт
-    corr_account: Optional[str] # Корр. счёт
-    bank_details: Optional[str] # Полные банк. реквизиты
-    director: Optional[str]     # Руководитель
-    contact_person: Optional[str]
-    phone: Optional[str]
-    email: Optional[str]
+class ExtractResponse(BaseModel):
+    success: bool
+    requisites: Dict[str, Any]    # {"Наименование": "ООО ...", "ИНН": "123..."}
+    raw_fields: List[RawField]
+    warnings: List[str] = []
+    message: str
 ```
 
 ### FillResponse
@@ -190,57 +219,69 @@ class Requisites(BaseModel):
 ```python
 class FillResponse(BaseModel):
     success: bool
-    output_path: str
-    filled_fields: int
+    filled_fields: int            # Сколько ячеек заполнено
+    total_instructions: int       # Сколько инструкций от LLM
+    download_url: str
+    filename: str
     message: str
 ```
 
----
+### Frontend: Requisites
 
-## Алгоритм заполнения
-
-### Маппинг меток → полей
-
-```python
-LABEL_MAPPING = {
-    "фирменное наименование": "company_name",
-    "наименование, фирменное": "company_name",
-    "сведения о месте нахождения": "address",
-    "инн и кпп": "inn",
-    "банковские реквизиты": "bank_details",
-    "телефон участника": "phone",
-    "адрес электронной почты": "email",
-    ...
-}
+```typescript
+type Requisites = Record<string, string>;
+// Динамический набор полей с русскими ключами от LLM
+// Пример: {"Наименование компании": "ООО Рога", "ИНН": "1234567890"}
 ```
-
-### Логика поиска в таблицах
-
-1. Итерация по всем таблицам документа
-2. Для каждой строки:
-   - Получить текст из столбца меток (обычно 2-й столбец)
-   - Найти соответствие в LABEL_MAPPING
-   - Записать значение в столбец данных (обычно 3-й столбец)
-3. Пропуск заголовков таблиц
 
 ---
 
-## Конвертация .doc → .docx
+## Ключевые сервисы
 
-### Windows (предпочтительно)
+### LLMService (`backend/app/services/llm_service.py`)
+
+- **Провайдер:** Anthropic Claude API
+- **Два метода:**
+  - `extract_requisites(text) → dict[str, str]` — извлечение реквизитов (XML-ответ)
+  - `generate_fill_instructions(table_text, xml) → list[dict]` — инструкции заполнения (JSON-ответ)
+- **Retry:** 3 попытки с exponential backoff
+- **Промпты:** загружаются из `backend/app/prompts/`
+
+### DocxText (`backend/app/services/docx_text.py`)
+
+- `docx_to_text(path)` — полный текст документа (параграфы + таблицы в Markdown)
+- `docx_tables_to_text(path)` — список таблиц с метаданными (index, rows, cols, cells)
+- `find_requisites_table(path)` — эвристика поиска таблицы реквизитов (по ключевым словам)
+
+### Converter (`backend/app/services/converter.py`)
+
+- `.doc → .docx` через pywin32 (Windows) или LibreOffice (кроссплатформенно)
+
+---
+
+## Конфигурация
+
+### Settings (`backend/app/config.py`)
 
 ```python
-# Через COM API (pywin32)
-word = win32com.client.Dispatch("Word.Application")
-doc = word.Documents.Open(path)
-doc.SaveAs2(output_path, FileFormat=16)  # 16 = docx
+class Settings(BaseSettings):
+    llm_api_key: str = ""
+    llm_base_url: str = ""
+    llm_model: str = "claude-sonnet-4-20250514"
+    llm_temperature: float = 0.0
+    llm_max_tokens: int = 4096
+    max_file_size: int = 10 * 1024 * 1024
+    allowed_extensions: set[str] = {".doc", ".docx"}
+
+    model_config = {"env_file": ".env", "env_prefix": "FILLDOCS_"}
 ```
 
-### Кроссплатформенно
+### Переменные окружения (.env)
 
-```bash
-# Через LibreOffice headless
-soffice --headless --convert-to docx --outdir output/ input.doc
+```
+FILLDOCS_LLM_API_KEY=your-api-key
+FILLDOCS_LLM_BASE_URL=https://api.anthropic.com
+FILLDOCS_LLM_MODEL=claude-sonnet-4-20250514
 ```
 
 ---
@@ -249,66 +290,15 @@ soffice --headless --convert-to docx --outdir output/ input.doc
 
 ### Принцип: No Database
 
-Система работает **без базы данных**. Все данные хранятся:
-- **На клиенте**: реквизиты в localStorage браузера
-- **На сервере**: временные файлы в файловой системе
+- **На клиенте:** реквизиты в localStorage (`filldocs_requisites`)
+- **На сервере:** только временные файлы, удаляются сразу
 
 ### Жизненный цикл файлов
-
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Upload    │────▶│  Temp file  │────▶│  Processing │────▶│   Delete    │
-│   (клиент)  │     │  (сервер)   │     │  (сервис)   │     │  (cleanup)  │
-└─────────────┘     └─────────────┘     └─────────────┘     └─────────────┘
-```
-
-### Временные файлы
 
 | Тип | Путь | Время жизни |
 |-----|------|-------------|
 | Загруженный документ | `data/temp/` | Удаляется сразу после обработки |
 | Результат заполнения | `data/output/` | Удаляется после скачивания |
-| Конвертированный .doc | `data/temp/` | Удаляется сразу после использования |
-
-### Реализация очистки
-
-```python
-# После извлечения реквизитов
-async def extract_requisites(file: UploadFile):
-    temp_path = save_temp_file(file)
-    try:
-        result = parse_document(temp_path)
-        return result
-    finally:
-        os.remove(temp_path)  # Всегда удаляем
-
-# После скачивания результата
-async def download_file(filename: str):
-    file_path = OUTPUT_DIR / filename
-    response = FileResponse(file_path)
-    # Удаление через background task
-    background_tasks.add_task(os.remove, file_path)
-    return response
-```
-
-### Структура временных папок
-
-```
-data/
-├── temp/           # Загруженные файлы (удаляются сразу)
-│   └── (пусто)
-├── output/         # Результаты (удаляются после скачивания)
-│   └── (пусто)
-└── templates/      # Постоянные шаблоны (опционально)
-    └── example.docx
-```
-
-### Преимущества подхода
-
-- Простота развёртывания (не нужна БД)
-- Минимальное использование диска
-- Приватность (файлы не хранятся)
-- Stateless сервер (легко масштабировать)
 
 ---
 
@@ -316,9 +306,26 @@ data/
 
 - CORS настроен для фронтенда
 - Валидация типов файлов (только .doc, .docx)
-- Ограничение размера загрузки (макс. 10 МБ)
-- Временные файлы удаляются сразу после обработки
-- Нет постоянного хранения пользовательских данных на сервере
+- Ограничение размера загрузки (10 МБ)
+- Временные файлы удаляются в finally-блоках
+- API ключи только в .env (не в коде)
+- Нет постоянного хранения пользовательских данных
+
+---
+
+## Тестирование
+
+44 backend теста:
+
+| Файл | Тестов | Покрытие |
+|------|--------|----------|
+| `test_docx_text.py` | 11 | docx→текст, таблицы, поиск |
+| `test_llm_service.py` | 12 | XML/JSON парсинг, промпты, retry |
+| `test_extract_endpoint.py` | 10 | API extract, ошибки LLM |
+| `test_fill_endpoint.py` | 7 | API fill, ошибки, инструкции |
+| `test_config.py` | 2 | Настройки, env override |
+
+Все внешние сервисы (LLM API) мокируются в тестах.
 
 ---
 
@@ -342,18 +349,4 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 # Frontend
 npm run build  # статика в dist/
-```
-
-### Docker (будущее)
-
-```yaml
-services:
-  backend:
-    build: ./backend
-    ports: ["8000:8000"]
-    volumes: ["./data:/app/data"]
-
-  frontend:
-    build: ./frontend
-    ports: ["80:80"]
 ```

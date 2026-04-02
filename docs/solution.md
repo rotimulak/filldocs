@@ -1,319 +1,207 @@
-# Solution: Архитектура решения
+# Solution: Алгоритмы и потоки данных (v2)
 
 ## Обзор подхода
 
-Двухэтапный процесс:
-1. **Extract** — извлечение реквизитов из документа-источника
-2. **Fill** — заполнение шаблона извлечёнными реквизитами
+Двухэтапный процесс с LLM в центре:
+1. **Extract** — docx → текст → LLM → XML → JSON реквизитов
+2. **Fill** — шаблон → поиск таблицы → LLM → инструкции → применение к docx
 
 ---
 
 ## 1. Алгоритм Extract (извлечение)
 
 ### Входные данные
-- Документ .docx с таблицей реквизитов компании
+- Документ .doc/.docx с реквизитами компании
 
-### Алгоритм
+### Поток
 
 ```
-extract(document) → Requisites
+extract(document) → dict[str, str]
 
-1. ЗАГРУЗКА
-   doc = Document(path)
-   tables = doc.tables
+1. ЗАГРУЗКА И КОНВЕРТАЦИЯ
+   if .doc → convert to .docx (pywin32/LibreOffice)
+   docx_path = saved temp file
 
-2. ПОИСК БЛОКА РЕКВИЗИТОВ
-   scores = {}
-   for table in tables:
-       score = count_keyword_matches(table, LABEL_MAPPING)
-       scores[table] = score
+2. КОНВЕРТАЦИЯ В ТЕКСТ
+   text = docx_to_text(docx_path)
+   // Параграфы → plain text
+   // Таблицы → Markdown pipe-separated формат
+   // Порядок элементов сохраняется
 
-   requisites_table = max(scores, key=scores.get)
-   if scores[requisites_table] < 3:
-       raise Error("Блок реквизитов не найден")
+3. ОТПРАВКА В LLM
+   prompt = extract_prompt_template.format(document_text=text)
+   response = await llm.messages.create(prompt)
+   // LLM возвращает XML:
+   // <requisites>
+   //   <field name="ИНН">1234567890</field>
+   //   <field name="Наименование">ООО Рога</field>
+   // </requisites>
 
-3. ИЗВЛЕЧЕНИЕ ДАННЫХ
-   result = {}
-   for row in requisites_table.rows:
-       label = get_label_cell(row).text.strip()
-       value = get_value_cell(row).text.strip()
+4. ПАРСИНГ ОТВЕТА
+   xml_block = extract_xml_block(response)  // находит <requisites>...</requisites>
+   result = parse_xml(xml_block)             // → {"ИНН": "1234567890", ...}
 
-       if not value:  # пустая ячейка — пропуск
-           continue
-
-       keys = find_matching_keys(label, LABEL_MAPPING)
-       for key in keys:
-           result[key] = value
-
-4. ВОЗВРАТ
-   return Requisites(**result)
+5. ВОЗВРАТ
+   return result  // dict с русскими ключами
 ```
 
-### Структура данных
+### Обработка ошибок
 
-```python
-LABEL_MAPPING = {
-    "наименование": "company_name",
-    "фирменное наименование": "company_name",
-    "инн": "inn",
-    "кпп": "kpp",
-    "инн и кпп": ["inn", "kpp"],  # составное поле
-    "инн / кпп": ["inn", "kpp"],
-    ...
-}
-```
+| Ситуация | HTTP | Сообщение |
+|----------|------|-----------|
+| Невалидный формат файла | 400 | "Недопустимый формат файла" |
+| Файл слишком большой | 400 | "Файл слишком большой" |
+| LLM вернул невалидный XML | 502 | "Ошибка разбора ответа LLM" |
+| LLM таймаут | 502 | "Таймаут LLM API" |
+| LLM API ошибка | 502 | "Ошибка LLM API" |
+| LLM не нашёл реквизитов | 200 | success=false, пустой результат |
 
 ---
 
 ## 2. Алгоритм Fill (заполнение)
 
 ### Входные данные
-- Шаблон .docx с пустой таблицей реквизитов
+- Шаблон .doc/.docx с таблицей для заполнения
 - JSON с реквизитами из localStorage
 
-### Алгоритм
+### Поток
 
 ```
-fill(template, requisites) → FilledDocument
+fill(template, requisites) → filled document
 
-1. ЗАГРУЗКА
-   doc = Document(template_path)
-   tables = doc.tables
+1. ЗАГРУЗКА И КОНВЕРТАЦИЯ
+   if .doc → convert to .docx
+   requisites_data = json.loads(requisites_string)
 
-2. ПОИСК БЛОКА РЕКВИЗИТОВ (аналогично extract)
-   requisites_table = find_requisites_table(tables)
+2. ПОИСК ТАБЛИЦЫ
+   table_info = find_requisites_table(docx_path)
+   // Эвристика: ищет таблицу с наибольшим числом совпадений
+   // ключевых слов (ИНН, наименование, адрес...) из LABEL_MAPPING
+   // Требует: ≥2 колонки, ≥2 совпадения
 
-3. ЗАПОЛНЕНИЕ
-   filled = []
-   skipped = []
-   errors = []
-   used_keys = set()
+   if not table_info:
+       tables = docx_tables_to_text(docx_path)  // fallback: первая таблица
 
-   for row in requisites_table.rows:
-       label_cell = get_label_cell(row)
-       value_cell = get_value_cell(row)
-       label = label_cell.text.strip().lower()
+   if not table_info:
+       raise HTTP 400 "Таблица не найдена"
 
-       # Проверка: ячейка должна быть пустой
-       if value_cell.text.strip():
-           errors.append(f"Ячейка уже заполнена: {label}")
-           continue
+3. КОНВЕРТАЦИЯ РЕКВИЗИТОВ В XML
+   xml = requisites_to_xml(requisites_data)
+   // <requisites>
+   //   <field name="ИНН">1234567890</field>
+   //   ...
+   // </requisites>
 
-       # Поиск ключевиков
-       keys = find_matching_keys(label, LABEL_MAPPING)
-       if not keys:
-           continue
+4. ГЕНЕРАЦИЯ ИНСТРУКЦИЙ ЧЕРЕЗ LLM
+   prompt = fill_prompt_template.format(
+       table_text=table_info["text"],      // Markdown-таблица
+       requisites_xml=xml
+   )
+   response = await llm.messages.create(prompt)
+   // LLM возвращает JSON:
+   // [{"row": 1, "col": 2, "value": "1234567890"}, ...]
 
-       # Фильтр уже использованных
-       keys = [k for k in keys if k not in used_keys]
-       if not keys:
-           skipped.append(label)
-           continue
-
-       # Сбор значений
-       values = []
-       for key in keys:
-           if key in requisites:
-               values.append(requisites[key])
-               used_keys.add(key)
-
-       if values:
-           # Запись с сохранением стиля
-           value_cell.text = " ".join(values)
-           copy_style(label_cell, value_cell)
-           filled.append({"label": label, "keys": keys})
-
-4. СОХРАНЕНИЕ
+5. ПРИМЕНЕНИЕ ИНСТРУКЦИЙ
+   doc = Document(docx_path)
+   table = doc.tables[table_info["index"]]
+   for instruction in instructions:
+       row, col, value = instruction
+       if row < len(table.rows) and col < len(cells):
+           table.rows[row].cells[col].text = value
+       else:
+           log warning "out of bounds"
    doc.save(output_path)
 
-5. ВОЗВРАТ ОТЧЁТА
-   return FillReport(
-       filled=filled,
-       skipped=skipped,
-       errors=errors,
-       total=len(requisites_table.rows)
-   )
+6. ВОЗВРАТ
+   return {filled_fields, total_instructions, download_url}
 ```
 
 ---
 
-## 3. Определение колонок таблицы
+## 3. Конвертация docx → текст
 
-### Стратегия авто-определения
+### Модуль: `backend/app/services/docx_text.py`
 
-```python
-def get_label_and_value_columns(table):
-    """
-    Определяет индексы колонок метки и значения
-    """
-    num_cols = len(table.columns)
+Три функции:
 
-    if num_cols == 2:
-        # [Метка | Значение]
-        return (0, 1)
+#### `docx_to_text(path) → str`
+- Итерирует элементы body документа в порядке появления
+- Параграфы → plain text
+- Таблицы → Markdown pipe-separated формат
+- Разделитель: двойной перенос строки
 
-    elif num_cols == 3:
-        # [№ п/п | Метка | Значение]
-        # Проверяем первую колонку на номера
-        first_col_is_numbers = all(
-            row.cells[0].text.strip().isdigit() or row.cells[0].text.strip() == ""
-            for row in table.rows[1:]  # пропуск заголовка
-        )
-        if first_col_is_numbers:
-            return (1, 2)
-        else:
-            return (0, 1)  # fallback
+#### `docx_tables_to_text(path) → list[dict]`
+- Список всех таблиц с метаданными:
+  - `index` — порядковый номер таблицы
+  - `rows`, `cols` — размеры
+  - `text` — Markdown-представление
+  - `cells` — матрица текстов ячеек (для обратного маппинга)
 
-    else:
-        # Эвристика: метка в предпоследней, значение в последней
-        return (num_cols - 2, num_cols - 1)
+#### `find_requisites_table(path) → dict | None`
+- Скоринг каждой таблицы по совпадениям с LABEL_MAPPING / COMPOSITE_FIELDS
+- Фильтр: ≥2 колонки
+- Порог: ≥2 совпадения
+- Возвращает таблицу с максимальным score
+
+### Формат Markdown-таблицы
+
+```
+| № п/п | Наименование сведений | Данные участника |
+| --- | --- | --- |
+| 1 | Фирменное наименование | ООО Рога и Копыта |
+| 2 | ИНН | 1234567890 |
 ```
 
 ---
 
-## 4. Обработка составных полей
+## 4. LLM-промпты
 
-### Пример: "ИНН / КПП"
+### Промпт извлечения (`backend/app/prompts/extract.txt`)
+- Роль: "специалист по извлечению реквизитов"
+- Входные данные: полный текст документа
+- Выходной формат: XML `<requisites><field name="...">...</field></requisites>`
+- Правила: оригинальные русские названия, числовые поля только цифры, составные поля разделять
 
-```python
-COMPOSITE_FIELDS = {
-    "инн и кпп": ["inn", "kpp"],
-    "инн / кпп": ["inn", "kpp"],
-    "инн/кпп": ["inn", "kpp"],
-    "р/с, к/с": ["account", "corr_account"],
-}
-
-def find_matching_keys(label: str, mapping: dict) -> list[str]:
-    """
-    Возвращает список ключей для метки.
-    Для составных полей — несколько ключей.
-    """
-    label_lower = label.lower()
-
-    # Сначала проверяем составные поля (более специфичные)
-    for pattern, keys in COMPOSITE_FIELDS.items():
-        if pattern in label_lower:
-            return keys
-
-    # Затем одиночные поля
-    for pattern, key in mapping.items():
-        if pattern in label_lower:
-            return [key]
-
-    return []
-```
+### Промпт заполнения (`backend/app/prompts/fill.txt`)
+- Роль: "специалист по заполнению документов"
+- Входные данные: Markdown-таблица + XML реквизитов
+- Выходной формат: JSON массив `[{row, col, value}]`
+- Правила: нумерация с 0, не перезаписывать метки, точные значения из реквизитов
 
 ---
 
-## 5. Сохранение стиля
+## 5. localStorage
 
-### Копирование форматирования
-
-```python
-def copy_style(source_cell, target_cell):
-    """
-    Копирует стиль из ячейки-источника в целевую
-    """
-    if not target_cell.paragraphs:
-        return
-
-    target_para = target_cell.paragraphs[0]
-
-    # Если есть текст в source — берём его стиль
-    if source_cell.paragraphs and source_cell.paragraphs[0].runs:
-        source_run = source_cell.paragraphs[0].runs[0]
-
-        if target_para.runs:
-            target_run = target_para.runs[0]
-        else:
-            target_run = target_para.add_run()
-
-        # Копируем свойства шрифта
-        target_run.font.name = source_run.font.name
-        target_run.font.size = source_run.font.size
-        target_run.font.bold = source_run.font.bold
-```
-
----
-
-## 6. localStorage
-
-### Ключ и структура
+### Структура
 
 ```typescript
-// Ключ
-const STORAGE_KEY = "filldocs_requisites";
+type Requisites = Record<string, string>;
+// Динамический набор — ключи на русском от LLM
 
-// Структура
 interface StoredRequisites {
   requisites: Requisites;
-  extractedFrom: string;  // имя файла источника
-  extractedAt: string;    // ISO timestamp
+  extractedFrom: string;   // имя файла-источника
+  extractedAt: string;     // ISO timestamp
 }
 
-// Hook
-function useRequisites() {
-  const [data, setData] = useLocalStorage<StoredRequisites | null>(
-    STORAGE_KEY,
-    null
-  );
-
-  return {
-    requisites: data?.requisites ?? null,
-    isLoaded: data !== null,
-    save: (req: Requisites, filename: string) => {
-      setData({
-        requisites: req,
-        extractedFrom: filename,
-        extractedAt: new Date().toISOString()
-      });
-    },
-    clear: () => setData(null)
-  };
-}
+const STORAGE_KEY = "filldocs_requisites";
 ```
 
 ---
 
-## 7. Архитектура компонентов
+## 6. Компоненты UI
 
 ```
-App.tsx
+App.tsx (3 колонки: lg:grid-cols-[1fr_1fr_280px])
 ├── RequisitesPanel (левая)
-│   ├── DropZone
-│   ├── Spinner (при загрузке)
-│   ├── JsonPreview (результат)
+│   ├── DropZone (.doc/.docx)
+│   ├── JsonPreview (динамические поля)
 │   └── StatusBadge ("✓ Сохранено")
 │
-└── FillPanel (правая)
-    ├── DropZone (disabled если нет реквизитов)
-    ├── Spinner (при заполнении)
-    ├── FillReport (результат)
-    └── DownloadButton
-```
-
----
-
-## 8. Поток данных
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        БРАУЗЕР                                  │
-│                                                                 │
-│  ┌──────────────┐              ┌──────────────┐                 │
-│  │ RequisitesPanel│            │  FillPanel   │                 │
-│  │              │              │              │                 │
-│  │  [Drop .docx]│              │ [Drop .docx] │                 │
-│  │      │       │              │      │       │                 │
-│  │      ▼       │              │      ▼       │                 │
-│  │  POST /extract              │  POST /fill  │                 │
-│  │      │       │              │      │       │                 │
-│  │      ▼       │              │      ▼       │                 │
-│  │  JsonPreview │◀─────────────│  FillReport  │                 │
-│  │      │       │  requisites  │      │       │                 │
-│  │      ▼       │  from state  │      ▼       │                 │
-│  │ localStorage │              │  [Download]  │                 │
-│  └──────────────┘              └──────────────┘                 │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+├── FillPanel (центральная)
+│   ├── DropZone (disabled без реквизитов)
+│   ├── FillReport ("Заполнено N из M")
+│   └── DownloadButton
+│
+└── HeuristicsPanel (правая, информационная)
 ```

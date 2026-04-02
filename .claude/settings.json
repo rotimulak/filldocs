@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(netstat -ano)",
+      "Read(//d/Sources/filldocs/**)",
+      "Bash(cmd /c \"taskkill /F /PID 295064\")",
+      "Bash(PYTHONIOENCODING=utf-8 uvicorn app.main:app --reload --port 8000)",
+      "Bash(python -m json.tool)",
+      "Bash(find d:/Sources/filldocs/backend -type d -name __pycache__ -exec rm -rf {} +)",
+      "Bash(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@176.119.141.98 \"echo ''=== Connected ==='' && docker --version 2>/dev/null || echo ''Docker NOT installed'' && nginx -v 2>&1 || echo ''Nginx NOT installed'' && ls -la /opt/filldocs/ 2>/dev/null || echo ''/opt/filldocs NOT exists'' && docker compose ps 2>/dev/null || echo ''No containers running''\")",
+      "Bash(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@176.119.141.98 \"echo ''=== Ports 80/443 ==='' && ss -tlnp | grep -E '':80|:443'' && echo ''=== Nginx status ==='' && systemctl is-active nginx && echo ''=== Xray/Amnezia ==='' && systemctl list-units --type=service | grep -iE ''xray|amnezia|awg'' || docker ps 2>/dev/null | grep -iE ''xray|amnezia''\")",
+      "Bash(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@176.119.141.98 \"docker ps -a 2>/dev/null && echo ''=== All listening ports ==='' && ss -tlnp | head -30\")",
+      "Bash(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@176.119.141.98 \"systemctl stop nginx && systemctl start docker && echo ''nginx stopped, docker started'' && ss -tlnp | grep -E '':443|:80''\")",
+      "Bash(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@176.119.141.98 \"echo ''=== CPU ==='' && nproc && lscpu | grep ''Model name'' && echo ''=== RAM ==='' && free -h && echo ''=== Disk ==='' && df -h / && echo ''=== Docker images ==='' && docker images 2>/dev/null | head -10 && echo ''=== Running containers ==='' && docker ps --format ''table {{.Names}}\\\\t{{.Image}}\\\\t{{.Ports}}'' 2>/dev/null\")",
+      "Bash(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=10 root@176.119.141.98 \"echo ''=== Docker containers ==='' && docker ps -a --format ''table {{.Names}}\\\\t{{.Status}}\\\\t{{.Ports}}'' && echo ''=== Listening ports ==='' && ss -tlnp && echo ''=== Systemd services \\(non-default\\) ==='' && systemctl list-units --type=service --state=running --no-pager | grep -vE ''systemd|dbus|cron|ssh|getty|network|resolved|journal|udev|polkit|snap|unattended|multipathd|ModemManager|accounts-daemon'' && echo ''=== Websites/configs ==='' && ls /etc/nginx/sites-enabled/ 2>/dev/null && echo ''=== Crontab ==='' && crontab -l 2>/dev/null || echo ''no crontab''\")",
+      "Bash(rsync -avz --exclude 'node_modules' --exclude '.git' --exclude '__pycache__' --exclude 'data/output' --exclude '.venv' --exclude 'seo-research' -e \"ssh -o StrictHostKeyChecking=no\" ./ root@153.80.245.179:/opt/filldocs/)",
+      "Bash(scp -o StrictHostKeyChecking=no -r backend/. root@153.80.245.179:/opt/filldocs/backend/)",
+      "Bash(scp -o StrictHostKeyChecking=no docker-compose.yml root@153.80.245.179:/opt/filldocs/)",
+      "Bash(scp -o StrictHostKeyChecking=no -r frontend/. root@153.80.245.179:/opt/filldocs/frontend/)",
+      "Read(//c/Users/rotim/**)",
+      "Bash(nslookup filldocs.ru)",
+      "Bash(nslookup filldocs.ru 8.8.8.8)",
+      "Bash(ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@153.80.245.179 \"nginx -t && cat /etc/nginx/sites-enabled/filldocs 2>/dev/null || cat /etc/nginx/sites-enabled/default 2>/dev/null\")",
+      "Bash(ssh -o StrictHostKeyChecking=no root@153.80.245.179 \"ls -la /etc/letsencrypt/live/filldocs.ru/ && openssl x509 -in /etc/letsencrypt/live/filldocs.ru/fullchain.pem -noout -dates -subject 2>&1 && ss -tlnp | grep -E ''443|80''\")",
+      "Bash(ssh -o StrictHostKeyChecking=no root@153.80.245.179 \"curl -s -o /dev/null -w ''%{http_code}'' --connect-timeout 5 https://filldocs.ru/\")",
+      "Bash(openssl s_client -connect filldocs.ru:443 -servername filldocs.ru)",
+      "Bash(openssl s_client -connect 153.80.245.179:443 -servername filldocs.ru)"
+    ]
+  }
+}
