@@ -1,10 +1,158 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+
+    <!-- Title & Description -->
+    <title>FillDocs — автоматическое заполнение реквизитов в документах Word</title>
+    <meta name="description" content="Загрузите документ с реквизитами компании — ИИ извлечёт данные. Загрузите шаблон Word — ИИ заполнит автоматически. Скачайте готовый документ. Бесплатно, без регистрации." />
+    <meta name="keywords" content="автозаполнение реквизитов, заполнение документов Word, ИИ заполнение документов, анкета участника закупки, карточка предприятия, заполнение шаблонов Word, автоматизация документов" />
+
+    <!-- Canonical -->
+    <link rel="canonical" href="https://filldocs.ru/" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="FillDocs" />
+    <meta property="og:title" content="FillDocs — автозаполнение реквизитов в документах с ИИ" />
+    <meta property="og:description" content="Загрузите документ с реквизитами — ИИ извлечёт данные. Загрузите шаблон Word — ИИ заполнит автоматически. Скачайте готовый документ." />
+    <meta property="og:image" content="https://filldocs.ru/og-preview.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://filldocs.ru/" />
+    <meta property="og:locale" content="ru_RU" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FillDocs — ИИ-сервис заполнения документов" />
+    <meta name="twitter:description" content="Автозаполнение реквизитов компании в Word-шаблонах. Анкеты, договоры, тендерная документация." />
+    <meta name="twitter:image" content="https://filldocs.ru/og-preview.png" />
+
+    <!-- Robots & Theme -->
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#2563eb" />
+
+    <!-- Schema.org — WebApplication -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "FillDocs",
+      "url": "https://filldocs.ru/",
+      "description": "ИИ-сервис автоматического заполнения реквизитов компании в документах Word",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Any",
+      "browserRequirements": "Requires JavaScript, HTML5",
+      "softwareVersion": "2.0",
+      "inLanguage": "ru",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "RUB",
+        "description": "Бесплатный доступ"
+      },
+      "featureList": [
+        "Извлечение реквизитов из документов Word с помощью ИИ",
+        "Автоматическое заполнение шаблонов Word",
+        "Поддержка .doc и .docx форматов",
+        "Файлы удаляются сразу после обработки",
+        "Данные хранятся только в браузере пользователя"
+      ]
+    }
+    </script>
+
+    <!-- Schema.org — FAQPage -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Какие форматы файлов поддерживает FillDocs?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "FillDocs работает с документами Word (.doc и .docx). Файлы .doc автоматически конвертируются в .docx перед обработкой."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Где хранятся мои данные? Это безопасно?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Загруженные файлы обрабатываются и немедленно удаляются с сервера. Извлечённые реквизиты сохраняются в localStorage вашего браузера — они никогда не покидают ваше устройство и не передаются третьим лицам."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Какие реквизиты ИИ может извлечь из документа?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "ИИ извлекает все стандартные реквизиты компании: наименование, ИНН, КПП, ОГРН, юридический и фактический адрес, банковские реквизиты (р/с, к/с, БИК, банк), контактные данные, данные руководителя и любые другие поля."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Можно ли заполнить анкету участника закупки по 44-ФЗ?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Да. FillDocs поддерживает тендерную документацию: анкеты участников закупок по 44-ФЗ и 223-ФЗ, опросные листы поставщиков, карточки предприятий."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Сервис бесплатный?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Да, FillDocs полностью бесплатен. Регистрация не требуется."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Нужно ли устанавливать программу?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Нет. FillDocs работает полностью в браузере. Поддерживаются Chrome, Firefox, Safari, Edge."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- Schema.org — HowTo -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "HowTo",
+      "name": "Как автоматически заполнить реквизиты в документе Word",
+      "description": "Пошаговая инструкция по автозаполнению реквизитов компании в Word-документах с помощью FillDocs",
+      "totalTime": "PT2M",
+      "step": [
+        {
+          "@type": "HowToStep",
+          "position": 1,
+          "name": "Загрузите документ с реквизитами",
+          "text": "Загрузите файл .doc или .docx с реквизитами вашей компании: карточку предприятия, выписку из ЕГРЮЛ или любой документ с данными."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 2,
+          "name": "Загрузите шаблон для заполнения",
+          "text": "Загрузите шаблон Word с таблицей для заполнения: анкету участника закупки, договор, опросный лист."
+        },
+        {
+          "@type": "HowToStep",
+          "position": 3,
+          "name": "Скачайте заполненный документ",
+          "text": "ИИ автоматически заполнит все поля реквизитов в шаблоне. Проверьте результат и скачайте готовый файл."
+        }
+      ]
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>
