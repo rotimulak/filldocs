@@ -8,7 +8,7 @@ export function LandingFooter() {
       <p className="text-gray-500 text-xs mt-4">
         Файлы не сохраняются на сервере. Реквизиты хранятся только в вашем браузере.
       </p>
-      <p className="text-gray-500 text-xs mt-4">&copy; 2025 FillDocs</p>
+      <p className="text-gray-500 text-xs mt-4">&copy; 2025&ndash;{new Date().getFullYear()} FillDocs</p>
     </footer>
   );
 }

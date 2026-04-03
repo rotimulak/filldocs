@@ -20,7 +20,7 @@ const steps = [
 
 export function HowItWorks() {
   return (
-    <section className="bg-white border-t border-gray-200">
+    <section className="bg-white border-t border-gray-200" id="how-it-works">
       <div className="max-w-5xl mx-auto px-4 py-16">
         <h2 className="text-2xl font-bold text-gray-900 text-center mb-12">
           Как это работает

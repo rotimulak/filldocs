@@ -41,7 +41,7 @@ export function FAQ() {
   const [open, setOpen] = useState<number | null>(null);
 
   return (
-    <section className="bg-white">
+    <section className="bg-white" id="faq">
       <div className="max-w-3xl mx-auto px-4 py-16">
         <h2 className="text-2xl font-bold text-gray-900 text-center mb-12">
           Частые вопросы
@@ -49,25 +49,32 @@ export function FAQ() {
 
         <div className="divide-y divide-gray-200">
           {items.map((item, i) => (
-            <div key={i}>
-              <button
-                onClick={() => setOpen(open === i ? null : i)}
-                className="flex justify-between items-center w-full text-left py-4 gap-4"
-              >
-                <span className="font-medium text-gray-900">{item.q}</span>
-                <svg
-                  className={`w-5 h-5 shrink-0 text-gray-400 transition-transform ${open === i ? 'rotate-45' : ''}`}
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+            <div key={item.q}>
+              <h3>
+                <button
+                  onClick={() => setOpen(open === i ? null : i)}
+                  className="flex justify-between items-center w-full text-left py-4 gap-4"
+                  aria-expanded={open === i}
+                  aria-controls={`faq-answer-${i}`}
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.5v15m7.5-7.5h-15" />
-                </svg>
-              </button>
+                  <span className="font-medium text-gray-900">{item.q}</span>
+                  <svg
+                    className={`w-5 h-5 shrink-0 text-gray-400 transition-transform ${open === i ? 'rotate-45' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                </button>
+              </h3>
               {open === i && (
-                <p className="text-gray-600 text-sm leading-relaxed pb-4">
-                  {item.a}
-                </p>
+                <div id={`faq-answer-${i}`} role="region" aria-labelledby={`faq-q-${i}`}>
+                  <p className="text-gray-600 text-sm leading-relaxed pb-4">
+                    {item.a}
+                  </p>
+                </div>
               )}
             </div>
           ))}
