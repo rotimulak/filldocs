@@ -174,7 +174,7 @@ export function FillPanel({ requisites }: FillPanelProps) {
         )}
 
         {/* Feedback - always visible */}
-        <FeedbackBlock />
+        <FeedbackBlock expanded={state.status === 'success'} />
       </div>
     </div>
   );
