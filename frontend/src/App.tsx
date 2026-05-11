@@ -18,7 +18,7 @@ function App() {
       {/* Header */}
       <header className="bg-transparent">
         <div className="max-w-[1400px] mx-auto px-4 py-4 flex items-center gap-4">
-          <img src="/mascot.png" alt="FillDocs — енот-помощник" className="h-16 w-auto" />
+          <img src="/mascot.png" alt="FillDocs — енот-помощник" className="h-12 w-auto" />
           <div>
             <h1 className="text-2xl font-bold text-gray-900">FillDocs</h1>
             <p className="text-sm text-gray-500">
