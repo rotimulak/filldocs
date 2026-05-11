@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { DropZone } from './DropZone';
 import { FillReport } from './FillReport';
 import { DonationBlock } from './DonationBlock';
+import { FeedbackBlock } from './FeedbackBlock';
 import { api, ApiError } from '../api/client';
 import type { Requisites, FillResponse } from '../types';
 
@@ -171,6 +172,9 @@ export function FillPanel({ requisites }: FillPanelProps) {
             <p>Поддерживаются форматы .doc и .docx</p>
           </div>
         )}
+
+        {/* Feedback - always visible */}
+        <FeedbackBlock />
       </div>
     </div>
   );

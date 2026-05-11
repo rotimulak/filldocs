@@ -103,6 +103,19 @@ export const api = {
   },
 
   /**
+   * Отправить обратную связь
+   */
+  async sendFeedback(message: string, contact: string): Promise<{ ok: boolean }> {
+    const res = await fetch(`${API_BASE}/feedback`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, contact }),
+    });
+
+    return handleResponse<{ ok: boolean }>(res);
+  },
+
+  /**
    * Получить пример структуры реквизитов
    */
   async getSampleRequisites(): Promise<Requisites> {

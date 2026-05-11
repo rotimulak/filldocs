@@ -451,3 +451,40 @@ DONATE_SUCCESS_HTML = """<!DOCTYPE html>
 async def donate_success():
     """Страница после успешного доната."""
     return DONATE_SUCCESS_HTML
+
+
+# --- Feedback ---
+
+
+class FeedbackRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+    contact: str = Field(default="", max_length=200)
+
+
+@router.post("/feedback")
+async def send_feedback(body: FeedbackRequest):
+    """Отправить обратную связь на email."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from app.config import settings
+
+    if not settings.smtp_host or not settings.smtp_user:
+        raise HTTPException(503, "Отправка сообщений временно недоступна")
+
+    subject = "FillDocs: обратная связь"
+    text = f"Сообщение:\n{body.message}\n\nКонтакт: {body.contact or 'не указан'}"
+    msg = MIMEText(text, "plain", "utf-8")
+    msg["Subject"] = subject
+    msg["From"] = settings.smtp_user
+    msg["To"] = settings.feedback_to
+
+    try:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as server:
+            server.starttls()
+            server.login(settings.smtp_user, settings.smtp_password)
+            server.sendmail(settings.smtp_user, settings.feedback_to, msg.as_string())
+    except Exception as e:
+        logger.error("Failed to send feedback email: %s", e)
+        raise HTTPException(502, "Не удалось отправить сообщение")
+
+    return {"ok": True}

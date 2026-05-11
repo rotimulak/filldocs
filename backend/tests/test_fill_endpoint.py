@@ -233,7 +233,9 @@ class TestFillInvalidInstructions:
         assert data["success"] is True
         # Только 1 из 3 инструкций валидна
         assert data["filled_fields"] == 1
-        assert data["total_instructions"] == 3
+        # total_instructions = кол-во строк с метками в таблице (row 0 — заголовок, пропускается)
+        assert data["total_instructions"] == 2
+        assert data["skipped_count"] == 2
 
 
 class TestRequisitesToXml:
