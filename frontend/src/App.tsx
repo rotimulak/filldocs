@@ -31,7 +31,7 @@ function App() {
 
       {/* Main content - two columns */}
       <main className="max-w-[1400px] mx-auto px-4 pt-0 pb-6">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {/* Левая панель - Реквизиты */}
           <div className="bg-white rounded-lg shadow p-6 min-h-[500px]">
             <RequisitesPanel onRequisitesChange={setRequisites} />
