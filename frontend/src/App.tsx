@@ -42,6 +42,10 @@ function App() {
       {/* Footer */}
       <footer className="max-w-[1400px] mx-auto px-4 py-4 text-center text-sm text-gray-500">
         <p>Файлы не сохраняются на сервере. Реквизиты хранятся только в вашем браузере.</p>
+        <nav aria-label="Юридическая информация" className="mt-2 space-x-4">
+          <a href="/legal/oferta.html" className="hover:text-gray-700 underline">Оферта</a>
+          <a href="/legal/privacy.html" className="hover:text-gray-700 underline">Политика конфиденциальности</a>
+        </nav>
       </footer>
     </div>
   );
