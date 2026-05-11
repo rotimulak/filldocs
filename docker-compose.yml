@@ -6,6 +6,7 @@ services:
       - ./backend/.env
     volumes:
       - ./data/templates:/app/templates
+      - ./data/visits:/app/data/visits
     environment:
       - PYTHONUNBUFFERED=1
 
