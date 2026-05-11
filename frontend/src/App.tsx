@@ -17,15 +17,14 @@ function App() {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-transparent">
-        <div className="max-w-[1400px] mx-auto px-4 py-8 flex items-center">
-          <div className="flex-1 text-right pr-6">
+        <div className="max-w-[1400px] mx-auto px-4 py-2 flex items-center justify-center">
+          <div className="text-right pr-4">
             <h1 className="text-3xl font-bold text-gray-900">FillDocs</h1>
             <p className="text-base text-gray-500 mt-1">
               Автоматическое заполнение<br />реквизитов в документах
             </p>
           </div>
           <img src="/mascot.png?v=2" alt="FillDocs — енот-помощник" className="h-32 w-auto shrink-0" />
-          <div className="flex-1" />
         </div>
       </header>
 
