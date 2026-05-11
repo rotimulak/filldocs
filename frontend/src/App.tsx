@@ -17,7 +17,7 @@ function App() {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-transparent">
-        <div className="max-w-[1400px] mx-auto px-4 pt-2 pb-0 grid grid-cols-[1fr_auto_1fr] items-end">
+        <div className="max-w-[1400px] mx-auto px-4 pt-2 pb-0 grid grid-cols-[1fr_auto_1fr] items-center">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">FillDocs</h1>
             <p className="text-base text-gray-500 mt-1">
