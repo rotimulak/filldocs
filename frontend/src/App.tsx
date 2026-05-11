@@ -2,6 +2,12 @@ import { useState } from 'react';
 import { RequisitesPanel } from './components/RequisitesPanel';
 import { FillPanel } from './components/FillPanel';
 import { HeuristicsPanel } from './components/HeuristicsPanel';
+import { HowItWorks } from './components/landing/HowItWorks';
+import { Audience } from './components/landing/Audience';
+import { Benefits } from './components/landing/Benefits';
+import { Comparison } from './components/landing/Comparison';
+import { FAQ } from './components/landing/FAQ';
+import { LandingFooter } from './components/landing/LandingFooter';
 import type { Requisites } from './types';
 
 function App() {
@@ -10,16 +16,16 @@ function App() {
   return (
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <header className="bg-transparent">
         <div className="max-w-[1400px] mx-auto px-4 py-4">
           <h1 className="text-2xl font-bold text-gray-900">FillDocs</h1>
           <p className="text-sm text-gray-500">
-            Автоматическое заполнение реквизитов в документах
+            Автоматическое заполнение реквизитов в документах Word с помощью ИИ
           </p>
         </div>
       </header>
 
-      {/* Main content - three columns */}
+      {/* Main content - two columns */}
       <main className="max-w-[1400px] mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Левая панель - Реквизиты */}
@@ -39,14 +45,18 @@ function App() {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="max-w-[1400px] mx-auto px-4 py-4 text-center text-sm text-gray-500">
+      {/* App footer */}
+      <div className="max-w-[1400px] mx-auto px-4 py-4 text-center text-sm text-gray-500">
         <p>Файлы не сохраняются на сервере. Реквизиты хранятся только в вашем браузере.</p>
-        <nav aria-label="Юридическая информация" className="mt-2 space-x-4">
-          <a href="/legal/oferta.html" className="hover:text-gray-700 underline">Оферта</a>
-          <a href="/legal/privacy.html" className="hover:text-gray-700 underline">Политика конфиденциальности</a>
-        </nav>
-      </footer>
+      </div>
+
+      {/* SEO-секции */}
+      <HowItWorks />
+      <Audience />
+      <Benefits />
+      <Comparison />
+      <FAQ />
+      <LandingFooter />
     </div>
   );
 }
