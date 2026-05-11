@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { DropZone } from './DropZone';
 import { FillReport } from './FillReport';
+import { DonationBlock } from './DonationBlock';
 import { api, ApiError } from '../api/client';
 import type { Requisites, FillResponse } from '../types';
 
@@ -151,6 +152,8 @@ export function FillPanel({ requisites }: FillPanelProps) {
               </svg>
               Скачать документ
             </button>
+
+            <DonationBlock />
           </>
         )}
 

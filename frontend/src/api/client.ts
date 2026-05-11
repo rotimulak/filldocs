@@ -90,6 +90,19 @@ export const api = {
   },
 
   /**
+   * Создать платёж-донат
+   */
+  async createDonation(amount: number): Promise<{ confirmation_url: string }> {
+    const res = await fetch(`${API_BASE}/donate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ amount }),
+    });
+
+    return handleResponse<{ confirmation_url: string }>(res);
+  },
+
+  /**
    * Получить пример структуры реквизитов
    */
   async getSampleRequisites(): Promise<Requisites> {
