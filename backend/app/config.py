@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     # YooKassa (donation)
     yookassa_shop_id: str = ""
     yookassa_secret_key: str = ""
-    yookassa_return_url: str = "https://filldocs.ru/donate/success"
+    yookassa_return_url: str = "https://filldocs.ru/api/donate/success"
 
     # App
     max_file_size: int = 10 * 1024 * 1024  # 10 MB

@@ -424,11 +424,9 @@ async def yookassa_webhook(request: Request):
     """Webhook ЮКассы — подтверждение платежа."""
     from app.services.payment_service import is_ip_allowed, verify_payment
 
-    # IP из-за прокси
+    # IP: trust request.client.host (nginx sets real IP via proxy_protocol / set_real_ip_from)
+    # Do NOT trust X-Forwarded-For — it can be spoofed by attackers
     client_ip = request.client.host if request.client else "0.0.0.0"
-    forwarded = request.headers.get("X-Forwarded-For")
-    if forwarded:
-        client_ip = forwarded.split(",")[0].strip()
 
     if not is_ip_allowed(client_ip):
         logger.warning("YooKassa webhook from non-whitelisted IP: %s", client_ip)
@@ -444,12 +442,13 @@ async def yookassa_webhook(request: Request):
         logger.info("Ignoring YooKassa event: %s", event)
         return {"status": "ignored"}
 
-    # Извлекаем payment_id и верифицируем через API
+    # Верифицируем платёж через API ЮКассы
     payment_obj = raw_data.get("object", {})
     payment_id = payment_obj.get("id")
 
-    if payment_id:
-        verify_payment(payment_id)
+    if payment_id and not verify_payment(payment_id):
+        logger.warning("Donation verification failed: payment_id=%s", payment_id)
+        raise HTTPException(400, "Payment verification failed")
 
     logger.info(
         "Donation webhook processed: event=%s, payment_id=%s, amount=%s",

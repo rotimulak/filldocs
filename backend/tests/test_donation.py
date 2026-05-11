@@ -84,6 +84,17 @@ def test_webhook_success(mock_ip, mock_verify):
     mock_verify.assert_called_once_with("pay_123")
 
 
+@patch("app.services.payment_service.verify_payment", return_value=False)
+@patch("app.services.payment_service.is_ip_allowed", return_value=True)
+def test_webhook_verification_failed(mock_ip, mock_verify):
+    """Верификация платежа не прошла — 400."""
+    resp = client.post("/api/webhook/yookassa", json={
+        "event": "payment.succeeded",
+        "object": {"id": "pay_123", "amount": {"value": "100.00", "currency": "RUB"}},
+    })
+    assert resp.status_code == 400
+
+
 @patch("app.services.payment_service.is_ip_allowed", return_value=False)
 def test_webhook_ip_blocked(mock_ip):
     """Webhook с невалидного IP — 403."""

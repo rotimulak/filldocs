@@ -23,10 +23,17 @@ ALLOWED_IPS = [
 ]
 
 
+_configured = False
+
+
 def _configure():
-    """Инициализировать SDK ЮКассы (вызывается лениво)."""
+    """Инициализировать SDK ЮКассы (вызывается лениво, один раз)."""
+    global _configured
+    if _configured:
+        return
     if settings.yookassa_shop_id and settings.yookassa_secret_key:
         Configuration.configure(settings.yookassa_shop_id, settings.yookassa_secret_key)
+        _configured = True
 
 
 def create_donation(amount: int) -> str:
