@@ -2,7 +2,8 @@
 import json
 import logging
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
+from datetime import datetime
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 import shutil
@@ -163,6 +164,7 @@ async def upload_template(file: UploadFile = File(...)):
 
 @router.post("/fill", response_model=FillResponse)
 async def fill_document(
+    request: Request,
     file: UploadFile = File(...),
     requisites: str = Form(...)  # JSON string
 ):
@@ -175,6 +177,9 @@ async def fill_document(
 
     Поток: загрузка -> поиск таблицы -> LLM генерирует инструкции -> применение к docx -> скачивание.
     """
+    client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+    logger.info("Fill request from IP=%s, file=%s", client_ip, file.filename)
+
     # Валидация расширения
     filename = file.filename or "template"
     ext = Path(filename).suffix.lower()
@@ -488,3 +493,84 @@ async def send_feedback(body: FeedbackRequest):
         raise HTTPException(502, "Не удалось отправить сообщение")
 
     return {"ok": True}
+
+
+# --- Visitor Tracking (Tag) ---
+
+VISITS_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "visits"
+VISITS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@router.post("/collect")
+async def collect_visit(request: Request):
+    """Принять fingerprint/activity от tag.js и сохранить."""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON")
+
+    if "fingerprint" not in data or "activity" not in data:
+        raise HTTPException(400, "Missing fingerprint or activity")
+
+    now = datetime.now()
+    ms = int(now.microsecond / 1000)
+    filename = f"{now.strftime('%Y-%m-%d-%H-%M-%S')}-{ms:03d}.json"
+
+    client_ip = request.headers.get("X-Real-IP") or request.headers.get("X-Forwarded-For", "").split(",")[0].strip() or (request.client.host if request.client else "unknown")
+
+    data["_meta"] = {
+        "timestamp": now.timestamp(),
+        "datetime": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "ip": client_ip,
+        "userAgent": request.headers.get("User-Agent", "unknown"),
+    }
+
+    filepath = VISITS_DIR / filename
+    filepath.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+
+    return {"ok": True}
+
+
+@router.get("/visits")
+async def list_visits(date: str | None = None, limit: int = 100):
+    """Список визитов."""
+    files = sorted(VISITS_DIR.glob("*.json"), reverse=True)
+
+    visits = []
+    for f in files:
+        if date and not f.name.startswith(date):
+            continue
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+            meta = d.get("_meta", {})
+            act = d.get("activity", {})
+            fp = d.get("fingerprint", {})
+            visits.append({
+                "filename": f.name,
+                "datetime": meta.get("datetime"),
+                "ip": meta.get("ip"),
+                "userAgent": meta.get("userAgent"),
+                "duration": act.get("duration"),
+                "hadMouse": act.get("hadMouse"),
+                "hadScroll": act.get("hadScroll"),
+                "hadKeyboard": act.get("hadKeyboard"),
+                "screen": fp.get("screen"),
+                "platform": fp.get("platform"),
+                "page": d.get("page"),
+                "referrer": d.get("referrer"),
+            })
+            if len(visits) >= limit:
+                break
+        except (json.JSONDecodeError, IOError):
+            continue
+
+    return {"visits": visits, "total": len(list(VISITS_DIR.glob("*.json")))}
+
+
+@router.get("/visits/{filename}")
+async def get_visit(filename: str):
+    """Детали одного визита."""
+    filepath = VISITS_DIR / filename
+    if not filepath.exists() or filepath.suffix != ".json":
+        raise HTTPException(404, "Not found")
+    return json.loads(filepath.read_text(encoding="utf-8"))
