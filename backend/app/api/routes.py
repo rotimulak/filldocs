@@ -2,7 +2,7 @@
 import json
 import logging
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks, Request
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
 from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 import shutil
@@ -417,45 +417,6 @@ async def create_donation(body: DonateRequest):
         raise HTTPException(502, "Ошибка создания платежа")
 
     return {"confirmation_url": confirmation_url}
-
-
-@router.post("/webhook/yookassa")
-async def yookassa_webhook(request: Request):
-    """Webhook ЮКассы — подтверждение платежа."""
-    from app.services.payment_service import is_ip_allowed, verify_payment
-
-    # IP: trust request.client.host (nginx sets real IP via proxy_protocol / set_real_ip_from)
-    # Do NOT trust X-Forwarded-For — it can be spoofed by attackers
-    client_ip = request.client.host if request.client else "0.0.0.0"
-
-    if not is_ip_allowed(client_ip):
-        logger.warning("YooKassa webhook from non-whitelisted IP: %s", client_ip)
-        raise HTTPException(403, "IP not allowed")
-
-    try:
-        raw_data = await request.json()
-    except Exception:
-        raise HTTPException(400, "Invalid JSON")
-
-    event = raw_data.get("event", "")
-    if event != "payment.succeeded":
-        logger.info("Ignoring YooKassa event: %s", event)
-        return {"status": "ignored"}
-
-    # Верифицируем платёж через API ЮКассы
-    payment_obj = raw_data.get("object", {})
-    payment_id = payment_obj.get("id")
-
-    if payment_id and not verify_payment(payment_id):
-        logger.warning("Donation verification failed: payment_id=%s", payment_id)
-        raise HTTPException(400, "Payment verification failed")
-
-    logger.info(
-        "Donation webhook processed: event=%s, payment_id=%s, amount=%s",
-        event, payment_id, payment_obj.get("amount", {}).get("value"),
-    )
-
-    return {"status": "ok"}
 
 
 DONATE_SUCCESS_HTML = """<!DOCTYPE html>

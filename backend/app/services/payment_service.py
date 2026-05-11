@@ -1,6 +1,5 @@
 """Сервис оплаты через ЮКассу (донат)."""
 
-import ipaddress
 import logging
 import uuid
 
@@ -9,19 +8,6 @@ from yookassa import Configuration, Payment
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-# IP whitelist для верификации webhook'ов ЮКассы
-ALLOWED_IP_RANGES = [
-    "185.71.76.0/27",
-    "185.71.77.0/27",
-    "77.75.153.0/25",
-    "77.75.154.128/25",
-]
-ALLOWED_IPS = [
-    "77.75.156.11",
-    "77.75.156.35",
-]
-
 
 _configured = False
 
@@ -67,44 +53,3 @@ def create_donation(amount: int) -> str:
     )
 
     return payment.confirmation.confirmation_url
-
-
-def verify_payment(payment_id: str) -> bool:
-    """Верифицировать платёж через API ЮКассы.
-
-    Returns:
-        True если платёж succeeded
-    """
-    _configure()
-    try:
-        payment = Payment.find_one(payment_id)
-        if payment.status == "succeeded":
-            logger.info(
-                "Donation verified: payment_id=%s, amount=%s",
-                payment.id, payment.amount.value,
-            )
-            return True
-        logger.warning(
-            "Donation status mismatch: payment_id=%s, status=%s",
-            payment_id, payment.status,
-        )
-        return False
-    except Exception as e:
-        logger.error("Failed to verify payment %s: %s", payment_id, e)
-        return False
-
-
-def is_ip_allowed(ip: str) -> bool:
-    """Проверить IP по whitelist ЮКассы."""
-    try:
-        client_ip = ipaddress.ip_address(ip)
-        for allowed_ip in ALLOWED_IPS:
-            if client_ip == ipaddress.ip_address(allowed_ip):
-                return True
-        for network in ALLOWED_IP_RANGES:
-            if client_ip in ipaddress.ip_network(network):
-                return True
-        return False
-    except ValueError:
-        logger.warning("Invalid IP address: %s", ip)
-        return False
