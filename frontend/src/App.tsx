@@ -17,14 +17,14 @@ function App() {
     <div className="min-h-screen bg-gray-100">
       {/* Header */}
       <header className="bg-transparent">
-        <div className="max-w-[1400px] mx-auto px-4 py-4 flex items-center gap-4">
-          <img src="/mascot.png?v=2" alt="FillDocs — енот-помощник" className="h-12 w-auto" />
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">FillDocs</h1>
-            <p className="text-sm text-gray-500">
-              Автоматическое заполнение реквизитов в документах Word с помощью ИИ
+        <div className="max-w-[1400px] mx-auto px-4 py-8 flex items-center justify-center gap-6">
+          <div className="text-right">
+            <h1 className="text-3xl font-bold text-gray-900">FillDocs</h1>
+            <p className="text-base text-gray-500 mt-1">
+              Автоматическое заполнение<br />реквизитов в документах
             </p>
           </div>
+          <img src="/mascot.png?v=2" alt="FillDocs — енот-помощник" className="h-32 w-auto" />
         </div>
       </header>
 
