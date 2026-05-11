@@ -2,8 +2,9 @@
 import json
 import logging
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, BackgroundTasks, Request
+from fastapi.responses import FileResponse, HTMLResponse
+from pydantic import BaseModel, Field
 import shutil
 import uuid
 import os
@@ -391,3 +392,102 @@ async def get_sample_requisites():
         "Расчётный счёт": "40702810938000012345",
         "Руководитель": "Иванов Иван Иванович",
     }
+
+
+# --- Donation (YooKassa) ---
+
+
+class DonateRequest(BaseModel):
+    amount: int = Field(ge=10, le=15000, description="Сумма доната в рублях")
+
+
+@router.post("/donate")
+async def create_donation(body: DonateRequest):
+    """Создать платёж-донат через ЮКассу."""
+    from app.services.payment_service import create_donation
+    from app.config import settings
+
+    if not settings.yookassa_shop_id or not settings.yookassa_secret_key:
+        raise HTTPException(503, "Платежи временно недоступны")
+
+    try:
+        confirmation_url = create_donation(body.amount)
+    except Exception as e:
+        logger.error("YooKassa payment creation failed: %s", e)
+        raise HTTPException(502, "Ошибка создания платежа")
+
+    return {"confirmation_url": confirmation_url}
+
+
+@router.post("/webhook/yookassa")
+async def yookassa_webhook(request: Request):
+    """Webhook ЮКассы — подтверждение платежа."""
+    from app.services.payment_service import is_ip_allowed, verify_payment
+
+    # IP из-за прокси
+    client_ip = request.client.host if request.client else "0.0.0.0"
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        client_ip = forwarded.split(",")[0].strip()
+
+    if not is_ip_allowed(client_ip):
+        logger.warning("YooKassa webhook from non-whitelisted IP: %s", client_ip)
+        raise HTTPException(403, "IP not allowed")
+
+    try:
+        raw_data = await request.json()
+    except Exception:
+        raise HTTPException(400, "Invalid JSON")
+
+    event = raw_data.get("event", "")
+    if event != "payment.succeeded":
+        logger.info("Ignoring YooKassa event: %s", event)
+        return {"status": "ignored"}
+
+    # Извлекаем payment_id и верифицируем через API
+    payment_obj = raw_data.get("object", {})
+    payment_id = payment_obj.get("id")
+
+    if payment_id:
+        verify_payment(payment_id)
+
+    logger.info(
+        "Donation webhook processed: event=%s, payment_id=%s, amount=%s",
+        event, payment_id, payment_obj.get("amount", {}).get("value"),
+    )
+
+    return {"status": "ok"}
+
+
+DONATE_SUCCESS_HTML = """<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Спасибо за поддержку — FillDocs</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           display: flex; justify-content: center; align-items: center;
+           min-height: 100vh; margin: 0; background: #f9fafb; color: #111827; }
+    .card { text-align: center; padding: 3rem 2rem; background: white;
+            border-radius: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.1); max-width: 420px; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    p { color: #6b7280; line-height: 1.6; }
+    a { color: #2563eb; text-decoration: none; font-weight: 500; }
+    a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>Спасибо за поддержку!</h1>
+    <p>Ваша благодарность помогает нам развивать FillDocs.</p>
+    <p><a href="/">Вернуться к сервису</a></p>
+  </div>
+</body>
+</html>"""
+
+
+@router.get("/donate/success", response_class=HTMLResponse)
+async def donate_success():
+    """Страница после успешного доната."""
+    return DONATE_SUCCESS_HTML
