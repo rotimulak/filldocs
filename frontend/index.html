@@ -1,13 +1,69 @@
 <!doctype html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>frontend</title>
+
+    <!-- Title & Description -->
+    <title>FillDocs — автозаполнение реквизитов в документах</title>
+    <meta name="description" content="Загрузите документ Word с реквизитами компании — FillDocs автоматически заполнит шаблон договора, счёта или акта. Бесплатно, без регистрации." />
+    <link rel="canonical" href="https://filldocs.ru/" />
+
+    <!-- Open Graph (Telegram, VK, WhatsApp) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://filldocs.ru/" />
+    <meta property="og:title" content="FillDocs — автозаполнение реквизитов в документах" />
+    <meta property="og:description" content="Загрузите документ Word с реквизитами компании — FillDocs автоматически заполнит шаблон договора, счёта или акта." />
+    <meta property="og:image" content="https://filldocs.ru/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="ru_RU" />
+    <meta property="og:site_name" content="FillDocs" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="FillDocs — автозаполнение реквизитов в документах" />
+    <meta name="twitter:description" content="Загрузите документ Word с реквизитами компании — FillDocs автоматически заполнит шаблон." />
+    <meta name="twitter:image" content="https://filldocs.ru/og-image.png" />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- Theme -->
+    <meta name="theme-color" content="#2563eb" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "FillDocs",
+      "url": "https://filldocs.ru",
+      "description": "Автоматическое заполнение реквизитов компании в документах Word с помощью ИИ",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "RUB"
+      },
+      "author": {
+        "@type": "Person",
+        "name": "Алексей Белоусов"
+      },
+      "inLanguage": "ru"
+    }
+    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <noscript>
+        <h1>FillDocs — автозаполнение реквизитов в документах</h1>
+        <p>Для работы приложения необходим JavaScript.</p>
+        <p>FillDocs автоматически заполняет реквизиты компании в документах Word (.docx) с помощью ИИ. Загрузите документ с реквизитами и шаблон — получите заполненный документ за секунды.</p>
+      </noscript>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

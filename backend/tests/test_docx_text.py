@@ -34,7 +34,7 @@ def test_docx_to_text_paragraphs(tmp_path: Path):
 
 
 def test_docx_to_text_with_table(tmp_path: Path):
-    """Таблица конвертируется в Markdown pipe-формат."""
+    """Таблица конвертируется в JSON-формат полей (строка 0 — заголовок, пропускается)."""
     path = tmp_path / "table.docx"
     doc = Document()
     doc.add_paragraph("Заголовок документа")
@@ -49,9 +49,9 @@ def test_docx_to_text_with_table(tmp_path: Path):
 
     text = docx_to_text(path)
     assert "Заголовок документа" in text
-    assert "| A1 | B1 | C1 |" in text
-    assert "| --- | --- | --- |" in text
-    assert "| A2 | B2 | C2 |" in text
+    # Row 0 is header (skipped), row 1: label_col=1 (B2), value_col=2 (C2)
+    assert '"field": "B2"' in text
+    assert '"current_value": "C2"' in text
 
 
 def test_docx_to_text_preserves_order(tmp_path: Path):
@@ -59,9 +59,11 @@ def test_docx_to_text_preserves_order(tmp_path: Path):
     path = tmp_path / "order.docx"
     doc = Document()
     doc.add_paragraph("ДО ТАБЛИЦЫ")
-    table = doc.add_table(rows=1, cols=2)
-    table.cell(0, 0).text = "ЯЧЕЙКА"
-    table.cell(0, 1).text = "ЗНАЧЕНИЕ"
+    table = doc.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "Заголовок"
+    table.cell(0, 1).text = "Значение"
+    table.cell(1, 0).text = "ЯЧЕЙКА"
+    table.cell(1, 1).text = "ДАННЫЕ"
     doc.add_paragraph("ПОСЛЕ ТАБЛИЦЫ")
     doc.save(str(path))
 
@@ -102,8 +104,10 @@ def test_docx_tables_to_text_metadata(tmp_path: Path):
     assert t["index"] == 0
     assert t["rows"] == 3
     assert t["cols"] == 2
-    assert "| Метка | Значение |" in t["text"]
-    assert "| --- | --- |" in t["text"]
+    # JSON fields format: row 0 is header (skipped), rows 1-2 are data
+    assert '"field": "ИНН"' in t["text"]
+    assert '"current_value": "1234567890"' in t["text"]
+    assert '"field": "КПП"' in t["text"]
     assert t["cells"][1] == ["ИНН", "1234567890"]
     assert t["cells"][2] == ["КПП", "123456789"]
 
