@@ -24,7 +24,7 @@ function App() {
               Автоматическое заполнение<br />реквизитов в документах
             </p>
           </div>
-          <img src="/mascot.png?v=2" alt="FillDocs — енот-помощник" className="h-32 w-auto" />
+          <img src="/mascot.png?v=2" alt="FillDocs — енот-помощник" className="h-40 w-auto" />
           <div />
         </div>
       </header>
